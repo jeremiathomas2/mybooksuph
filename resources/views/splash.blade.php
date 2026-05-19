@@ -1,9 +1,18 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to Ufunuo Publishing House</title>
+    <title>Welcome — Ufunuo Publishing House</title>
+    
+    <script>
+        // Apply theme immediately to prevent flash
+        (function() {
+            const theme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;800&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -12,6 +21,10 @@
             --accent: #2d7dd2;
             --bg: #f0f4f9;
             --text: #1a2a3a;
+        }
+        [data-theme="dark"] {
+            --bg: #0f1923;
+            --text: #e8f0f8;
         }
         body {
             margin: 0;
@@ -23,6 +36,7 @@
             align-items: center;
             justify-content: center;
             text-align: center;
+            transition: background 0.3s;
         }
         .container {
             max-width: 600px;
@@ -32,6 +46,11 @@
             border-radius: 24px;
             border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            transition: all 0.3s;
+        }
+        [data-theme="dark"] .container {
+            background: rgba(0, 0, 0, 0.2);
+            border-color: rgba(255, 255, 255, 0.05);
         }
         .logo {
             font-size: 64px;
@@ -86,17 +105,34 @@
             top: 20px;
             right: 20px;
         }
+        .lang-switch {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            outline: none;
+        }
     </style>
 </head>
 <body>
+    <div class="lang-switcher">
+        <select onchange="window.location.href='/lang/' + this.value" class="lang-switch">
+            <option value="en" {{ app()->getLocale() == 'en' ? 'selected' : '' }}>English</option>
+            <option value="sw" {{ app()->getLocale() == 'sw' ? 'selected' : '' }}>Kiswahili</option>
+        </select>
+    </div>
+
     <div class="container">
         <div class="logo"><i class="fas fa-book-open"></i></div>
         <h1>Ufunuo Publishing House</h1>
-        <p>Distribution Management System</p>
+        <p>{{ __('messages.splash_subtitle') }}</p>
         
         <div class="actions">
-            <a href="{{ route('login') }}" class="btn btn-primary">Login</a>
-            <a href="{{ route('register') }}" class="btn btn-outline">Register</a>
+            <a href="{{ route('login') }}" class="btn btn-primary">{{ __('messages.login') }}</a>
+            <a href="{{ route('register') }}" class="btn btn-outline">{{ __('messages.register') }}</a>
         </div>
     </div>
 </body>

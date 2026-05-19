@@ -51,12 +51,98 @@ function toggleSettings() {
 // ===== DARK MODE =====
 function toggleDark() {
   const isDark = root.getAttribute('data-theme') === 'dark';
-  root.setAttribute('data-theme', isDark ? 'light' : 'dark');
-  const toggle = document.getElementById('darkToggle');
-  if (toggle) toggle.classList.toggle('on', !isDark);
-  const btn = document.getElementById('themeBtn');
-  if (btn) btn.innerHTML = isDark ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+  const newTheme = isDark ? 'light' : 'dark';
+  root.setAttribute('data-theme', newTheme);
+  localStorage.setItem('theme', newTheme);
+  
+  updateThemeUI(newTheme === 'dark');
 }
+
+function updateThemeUI(isDark) {
+  const toggle = document.getElementById('darkToggle');
+  if (toggle) toggle.classList.toggle('on', isDark);
+  const btn = document.getElementById('themeBtn');
+  if (btn) btn.innerHTML = isDark ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+}
+
+// ===== PERSISTENCE =====
+function saveSetting(key, value) {
+  localStorage.setItem('setting_' + key, value);
+}
+
+function loadSettings() {
+  const settings = {
+    'header-bg': localStorage.getItem('setting_header-bg'),
+    'sidebar-bg': localStorage.getItem('setting_sidebar-bg'),
+    'accent': localStorage.getItem('setting_accent'),
+    'sidebar-width': localStorage.getItem('setting_sidebar-width'),
+    'transition': localStorage.getItem('setting_transition'),
+    'hover-effect': localStorage.getItem('setting_hover-effect'),
+    'compact-mode': localStorage.getItem('setting_compact-mode') === 'true'
+  };
+
+  if (settings['header-bg']) {
+    root.style.setProperty('--header-bg', settings['header-bg']);
+    const mainHeader = document.getElementById('mainHeader');
+    if (mainHeader) mainHeader.style.background = settings['header-bg'];
+    // Update UI selected state
+    document.querySelectorAll('#headerColors .color-opt').forEach(c => {
+      if (c.dataset.color === settings['header-bg']) c.classList.add('selected');
+      else c.classList.remove('selected');
+    });
+  }
+
+  if (settings['sidebar-bg']) {
+    root.style.setProperty('--sidebar-bg', settings['sidebar-bg']);
+    document.querySelectorAll('#sidebarColors .color-opt').forEach(c => {
+      if (c.dataset.color === settings['sidebar-bg']) c.classList.add('selected');
+      else c.classList.remove('selected');
+    });
+  }
+
+  if (settings['accent']) {
+    root.style.setProperty('--accent', settings['accent']);
+    root.style.setProperty('--sidebar-active', settings['accent']);
+    document.querySelectorAll('#accentColors .color-opt').forEach(c => {
+      if (c.dataset.color === settings['accent']) c.classList.add('selected');
+      else c.classList.remove('selected');
+    });
+  }
+
+  if (settings['sidebar-width']) {
+    root.style.setProperty('--sidebar-width', settings['sidebar-width']);
+    const mainArea = document.getElementById('mainArea');
+    if (!sidebarCollapsed && mainArea) mainArea.style.marginLeft = settings['sidebar-width'];
+    // Update UI selected state
+    document.querySelectorAll('.anim-options .anim-opt').forEach(a => {
+      if (a.getAttribute('onclick') && a.getAttribute('onclick').includes(settings['sidebar-width'])) a.classList.add('selected');
+    });
+  }
+
+  if (settings['transition']) {
+    root.style.setProperty('--transition', settings['transition']);
+    // Note: complex to update UI selected state for transition as it's a derived value
+  }
+
+  if (settings['hover-effect']) {
+    setHoverEffect(settings['hover-effect'], false); // false to skip toast
+  }
+
+  if (settings['compact-mode']) {
+    const toggle = document.getElementById('compactToggle');
+    if (toggle) {
+      toggle.classList.add('on');
+      toggleCompact(toggle, false); // false to skip toast
+    }
+  }
+}
+
+// Initialize theme UI on load
+window.addEventListener('DOMContentLoaded', () => {
+  const isDark = root.getAttribute('data-theme') === 'dark';
+  updateThemeUI(isDark);
+  loadSettings();
+});
 
 // ===== COLOR SETTINGS =====
 function setHeaderColor(el) {
@@ -66,6 +152,7 @@ function setHeaderColor(el) {
   root.style.setProperty('--header-bg', color);
   const mainHeader = document.getElementById('mainHeader');
   if(mainHeader) mainHeader.style.background = color;
+  saveSetting('header-bg', color);
   showToast('Header color updated', 'success');
 }
 function setSidebarColor(el) {
@@ -73,6 +160,7 @@ function setSidebarColor(el) {
   el.classList.add('selected');
   const color = el.dataset.color;
   root.style.setProperty('--sidebar-bg', color);
+  saveSetting('sidebar-bg', color);
   showToast('Sidebar color updated', 'success');
 }
 function setAccentColor(el) {
@@ -81,12 +169,13 @@ function setAccentColor(el) {
   const color = el.dataset.color;
   root.style.setProperty('--accent', color);
   root.style.setProperty('--sidebar-active', color);
+  saveSetting('accent', color);
   showToast('Accent color updated', 'success');
 }
 
 // ===== HOVER EFFECTS =====
 let currentHoverEffect = 'lift';
-function setHoverEffect(effect) {
+function setHoverEffect(effect, notify = true) {
   currentHoverEffect = effect;
   document.querySelectorAll('[id^=hoverOpt-]').forEach(el => el.classList.remove('selected'));
   const opt = document.getElementById('hoverOpt-' + effect);
@@ -101,7 +190,8 @@ function setHoverEffect(effect) {
     slide: `.stat-card:hover,.book-card:hover,.quick-action:hover{transform:translateX(5px)!important;} .nav-item:hover{transform:translateX(6px)!important;}`
   };
   style.textContent = effects[effect] || '';
-  showToast('Hover effect: ' + effect.charAt(0).toUpperCase()+effect.slice(1), 'info');
+  saveSetting('hover-effect', effect);
+  if (notify) showToast('Hover effect: ' + effect.charAt(0).toUpperCase()+effect.slice(1), 'info');
 }
 
 // ===== TRANSITION SPEED =====
@@ -110,8 +200,10 @@ function setTransitionSpeed(speed, el) {
   el.classList.add('selected');
   const speeds = { fast:'0.15s', normal:'0.28s', slow:'0.55s', none:'0s' };
   const dur = speeds[speed] || '0.28s';
-  root.style.setProperty('--transition', `all ${dur} cubic-bezier(0.4,0,0.2,1)`);
+  const trans = `all ${dur} cubic-bezier(0.4,0,0.2,1)`;
+  root.style.setProperty('--transition', trans);
   root.style.setProperty('--transition-bounce', `all ${speed==='none'?'0s':'calc('+dur+' + 0.1s)'} cubic-bezier(0.34,1.56,0.64,1)`);
+  saveSetting('transition', trans);
   showToast('Transition speed: ' + speed, 'info');
 }
 
@@ -120,20 +212,26 @@ function setSidebarWidth(width, el) {
   root.style.setProperty('--sidebar-width', width);
   const mainArea = document.getElementById('mainArea');
   if (!sidebarCollapsed && mainArea) mainArea.style.marginLeft = width;
+  saveSetting('sidebar-width', width);
   showToast('Sidebar width updated', 'info');
 }
 
 // ===== COMPACT MODE =====
-function toggleCompact(toggle) {
-  toggle.classList.toggle('on');
+function toggleCompact(toggle, notify = true) {
+  if (notify) toggle.classList.toggle('on');
   const isCompact = toggle.classList.contains('on');
   const style = document.getElementById('compactStyle') || (() => { const s = document.createElement('style'); s.id='compactStyle'; document.head.appendChild(s); return s; })();
   style.textContent = isCompact ? `.page-content{padding:12px!important} .card-body{padding:12px!important} .nav-item{padding:7px 18px!important} .stat-card{padding:12px!important}` : '';
-  showToast(isCompact ? 'Compact mode on' : 'Compact mode off', 'info');
+  saveSetting('compact-mode', isCompact);
+  if (notify) showToast(isCompact ? 'Compact mode on' : 'Compact mode off', 'info');
 }
 
 // ===== RESET SETTINGS =====
 function resetSettings() {
+  const settingsKeys = ['header-bg', 'sidebar-bg', 'accent', 'sidebar-width', 'transition', 'hover-effect', 'compact-mode'];
+  settingsKeys.forEach(key => localStorage.removeItem('setting_' + key));
+  localStorage.removeItem('theme');
+
   root.style.setProperty('--header-bg', '#1a3a5c');
   root.style.setProperty('--sidebar-bg', '#132d47');
   root.style.setProperty('--accent', '#2d7dd2');
